@@ -1,1 +1,3 @@
 an implementation of an independent media streaming protocol
+
+uses nobuild (https://github.com/tsoding/nobuild)

@@ -19,7 +19,7 @@ void client_connect(uint16_t port) {
         .sin_port = htons(port)
     };
 
-    if(inet_pton(AF_INET, "127.0.0.1", &client_sockaddr.sin_addr) <= 0) {
+    if(inet_pton(AF_INET, "0.0.0.0", &client_sockaddr.sin_addr) < 0) {
         perror("inet_pton");
         exit(EXIT_FAILURE);
     }
@@ -30,7 +30,7 @@ void client_connect(uint16_t port) {
     }
 
     const char *request = "hi from client";
-    send(client, request, strlen(request) + 1, 0);
+    send(client, request, strlen(request), 0);
     char buffer[1024] = {0};
     recv(client, buffer, sizeof(buffer), 0);
     printf("%s\n", buffer);

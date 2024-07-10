@@ -1,4 +1,5 @@
 #include "server.h"
+#include <protocol.h>
 
 #include <string.h>
 #include <sys/socket.h>
@@ -61,16 +62,18 @@ void init_server(uint16_t port) {
 
 void *_handle_client(void *arg) {
     const int client = *(int *)arg;
-    char buffer[1024] = {0};
-    const char *response = "hi from server";
 
     if(client < 0) {
         perror("accept");
         exit(EXIT_FAILURE);
     }
 
+    unsigned char *buffer = malloc(sizeof(Handshake));
+    const char *response = "hi from server";
     recv(client, buffer, sizeof(buffer), 0);
-    send(client, response, strlen(response) + 1, 0);
+    validate_handshake(buffer);
+
+    send(client, response, strlen(response), 0);
 
     // free(arg);
     close(client);
