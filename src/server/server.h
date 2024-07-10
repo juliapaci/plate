@@ -8,9 +8,6 @@
 #include <stdbool.h>
 
 typedef struct {
-    // server
-    in_port_t port;
-
     // quality
     bool quality_variable;  // changing levels of quality
     size_t quality;         // severity of compression stuff
@@ -19,17 +16,12 @@ typedef struct {
     size_t chunks_backward; // max amount of chunks to retroactively load
 } Options;
 
-const Options OPTIONS_DEFAULT = {
-    .quality_variable = false,
-    .quality = 0,
-    .chunks_forward = 3,
-    .chunks_backward = 2
-};
+extern const Options OPTIONS_DEFAULT;
 
 Options parse_options_base(FILE *stream);
 Options parse_options(int argc, char **argv);
 
-int init_server_base(uint16_t port);
-int init_server(Options *options);
+int init_server(uint16_t port);
+void close_server(int sock);
 
 #endif // __SERVER_H__
