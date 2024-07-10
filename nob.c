@@ -23,12 +23,16 @@ void build_server(void) {
     CMD("cc", CFLAGS, "-o", PATH(BUILD, "server"), PATH("src", "server", "main.c"), PATH("src", "server", "server.c"));
 }
 
+void build_client(void) {
+    CMD("cc", CFLAGS, "-o", PATH(BUILD, "client"), PATH("src", "client", "main.c"), PATH("src", "client", "client.c"));
+}
+
 int main(int argc, char **argv) {
     GO_REBUILD_URSELF(argc, argv);
 
     CMD("mkdir", "-p", BUILD);
-
     build_server();
+    build_client();
 
     return 0;
 }

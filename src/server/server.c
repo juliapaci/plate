@@ -6,8 +6,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#define BUFFER_LEN 1024
+#include <pthread.h>
 
 const Options OPTIONS_DEFAULT = {
     .quality_variable = false,
@@ -17,13 +16,13 @@ const Options OPTIONS_DEFAULT = {
 };
 
 void init_server(uint16_t port) {
-    int server = socket(PF_INET, SOCK_STREAM, 0);
+    const int server = socket(PF_INET, SOCK_STREAM, 0);
     if(server < 0) {
         perror("socket");
         exit(EXIT_FAILURE);
     }
 
-    int opt = 1;
+    const int opt = 1;
     if(setsockopt(server, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
@@ -47,27 +46,33 @@ void init_server(uint16_t port) {
         exit(EXIT_FAILURE);
     }
 
-    char buffer[BUFFER_LEN];
-    const char *response = "Hello, world!";
-
     while(true) {
         int client = accept(server, (struct sockaddr *) &client_sockaddr, &socklen);
 
-        __pid_t pid = fork();
-
-        if(pid != 0) close(client);
-
-        if(client < 0) {
-            perror("accept");
-            exit(EXIT_FAILURE);
-        }
-
-        read(client, buffer, BUFFER_LEN);
-        printf("%s\n", buffer);
-        send(client, response, strlen(response), 0);
+        pthread_t thread;
+        pthread_create(&thread, NULL, _handle_client, (void *)&client);
+        // TODO: detach is what we want but it doesnt work for some reason?
+        pthread_join(thread, NULL);
 
         close(server);
-        close(client);
         exit(EXIT_SUCCESS);
     }
+}
+
+void *_handle_client(void *arg) {
+    const int client = *(int *)arg;
+    char buffer[1024] = {0};
+    const char *response = "hi from server";
+
+    if(client < 0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    recv(client, buffer, sizeof(buffer), 0);
+    send(client, response, strlen(response) + 1, 0);
+
+    // free(arg);
+    close(client);
+    return NULL;
 }

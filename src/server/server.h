@@ -22,5 +22,6 @@ Options parse_options_base(FILE *stream);
 Options parse_options(int argc, char **argv);
 
 void init_server(uint16_t port);
+void *_handle_client(void *arg);
 
 #endif // __SERVER_H__
