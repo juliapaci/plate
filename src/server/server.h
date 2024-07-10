@@ -21,7 +21,6 @@ extern const Options OPTIONS_DEFAULT;
 Options parse_options_base(FILE *stream);
 Options parse_options(int argc, char **argv);
 
-int init_server(uint16_t port);
-void close_server(int sock);
+void init_server(uint16_t port);
 
 #endif // __SERVER_H__
