@@ -5,14 +5,20 @@
 #include <stdbool.h>
 #include <string.h>
 
-enum {
+typedef enum {
     METADATA,   // gets the metadata
     LOAD,       // loads a chunk
-};
+    LIST,       // lists servers root directory
+} PacketKind;
 
-struct Packet {
+typedef enum {
+    HANDSHAKE_SUCCESS,  // successfully validated the handshake
+    HANDSHAKE_FAILURE   // failed to validate the appropriate handshake
+} ErrorKind;
 
-};
+typedef struct {
+    PacketKind kind;
+} Packet;
 
 typedef struct __attribute__((packed)) {
     uint16_t magic;
@@ -22,6 +28,8 @@ typedef struct __attribute__((packed)) {
 extern const Handshake HANDSHAKE_EXPECTED;
 
 // TODO: not sure if this should be inlined
-bool validate_handshake(unsigned char *packet);
+inline bool validate_handshake(unsigned char *packet) {
+    return memcmp(&HANDSHAKE_EXPECTED, packet, sizeof(Handshake)) == 0;
+}
 
 #endif // __PROTOCOL_H__

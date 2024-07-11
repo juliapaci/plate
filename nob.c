@@ -1,11 +1,12 @@
-#include <string.h>
 #define NOBUILD_IMPLEMENTATION
 #include "nob.h"
+#include <string.h>
 
 #define BUILD "build"
 #define CFLAGS "-Wall", "-Wextra"
 // TODO: not sure if "-I" is an linker flag?
 #define LDFLAGS "-Lbuild", "-Isrc/protocol", "-lprotocol"
+#define LDFLAGS_DELIM "\", \""
 
 void build_protocol(void) {
     CMD("cc", CFLAGS, LDFLAGS, "-c", "-o", PATH(BUILD, "protocol.o"), PATH("src", "protocol", "protocol.c"));
@@ -40,22 +41,23 @@ void create_compile_commands(void) {
     const size_t ldflags_amount = sizeof(ldflags_array)/sizeof(char *);
     size_t ldflags_size = 0;
     for(size_t i = 0; i < ldflags_amount; i++)
-        ldflags_size += strlen(ldflags_array[i]) + strlen("\", \"");
+        ldflags_size += strlen(ldflags_array[i]) + strlen(LDFLAGS_DELIM);
 
     char *ldflags_args = malloc(ldflags_size);
     ldflags_args[0] = '\0';
-    for(size_t i = 0; i < sizeof(ldflags_array)/sizeof(char *); i++) {
-        ldflags_args = strcat(ldflags_args, "\", \"");
+    for(size_t i = 0; i < ldflags_amount; i++) {
+        ldflags_args = strcat(ldflags_args, LDFLAGS_DELIM);
         ldflags_args = strcat(ldflags_args, ldflags_array[i]);
     }
 
     fprintf(json,
-        "["
-        "{"
-        "\"directory\": \"%s\","
-        "\"arguments\": [\"/usr/bin/cc%s\"],"
-        "\"file\": \"N/A\""
-        "}"
+        "["                                     "\n"
+        "\t"    "{"                             "\n"
+        "\t\t"      "\"directory\": \"%s\","    "\n"
+        // stupid formatting but works cause order of appending LDFLAGS_DELIM
+        "\t\t"      "\"arguments\": [\"/usr/bin/cc%s\"],"   "\n"
+        "\t\t"      "\"file\": \"N/A\""         "\n"
+        "\t"    "}"                             "\n"
         "]",
         GETCWD(),
         ldflags_args

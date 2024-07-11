@@ -8,13 +8,31 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 const Options OPTIONS_DEFAULT = {
     .quality_variable = false,
     .quality = 0,
     .chunks_forward = 3,
-    .chunks_backward = 2
+    .chunks_backward = 2,
+    // chunk_size = // TODO: find unit
 };
+
+// Options parse_options(int argc, char **argv) {
+    // TODO: do with getopt()
+// }
+
+Server init_state(void) {
+    char cwd[PATH_MAX] = ".";
+    // if(getcwd(cwd, sizeof(cwd)) == NULL) {
+    //     perror("getcwd");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    return (Server){
+        .living = opendir(cwd)
+    };
+}
 
 void init_server(uint16_t port) {
     const int server = socket(PF_INET, SOCK_STREAM, 0);
@@ -52,12 +70,11 @@ void init_server(uint16_t port) {
 
         pthread_t thread;
         pthread_create(&thread, NULL, _handle_client, (void *)&client);
-        // TODO: detach is what we want but it doesnt work for some reason?
-        pthread_join(thread, NULL);
-
-        close(server);
-        exit(EXIT_SUCCESS);
+        pthread_detach(thread);
     }
+
+    close(server);
+    exit(EXIT_SUCCESS);
 }
 
 void *_handle_client(void *arg) {
@@ -67,15 +84,37 @@ void *_handle_client(void *arg) {
         perror("accept");
         exit(EXIT_FAILURE);
     }
-
-    unsigned char *buffer = malloc(sizeof(Handshake));
-    const char *response = "hi from server";
+unsigned char *buffer = malloc(sizeof(Handshake)); char *response = "s";
+    // Packet response = {
+    //     .kind = HANDSHAKE_SUCCESS
+    // };
     recv(client, buffer, sizeof(buffer), 0);
-    validate_handshake(buffer);
+    if(!validate_handshake(buffer)) {
+        response = "failed to validate the appropriate handshake";
+    }
 
     send(client, response, strlen(response), 0);
+    fetch_list(opendir("."));
 
-    // free(arg);
     close(client);
     return NULL;
+}
+
+char *fetch_list(DIR *dirp) {
+    if(!dirp) {
+        fprintf(stderr, "failed to fetch list");
+    }
+
+    char *response = malloc(0);
+
+    struct dirent *dir;
+    while((dir = readdir(dirp)) != NULL) {
+        printf("%s\n", dir->d_name);
+    }
+
+    return response;
+}
+
+void clean_state(Server *server) {
+    closedir(server->living);
 }

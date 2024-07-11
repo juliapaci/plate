@@ -1,4 +1,5 @@
 #include "client.h"
+#include <protocol.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -29,8 +30,8 @@ void client_connect(uint16_t port) {
         exit(EXIT_FAILURE);
     }
 
-    const char *request = "hi from client";
-    send(client, request, strlen(request), 0);
+    const Handshake handshake = HANDSHAKE_EXPECTED;
+    send(client, &handshake, sizeof(Handshake), 0);
     char buffer[1024] = {0};
     recv(client, buffer, sizeof(buffer), 0);
     printf("%s\n", buffer);
