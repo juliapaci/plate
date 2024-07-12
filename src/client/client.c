@@ -6,8 +6,8 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
+#include <linux/limits.h>
 
 void client_connect(uint16_t port) {
     const int client = socket(PF_INET, SOCK_STREAM, 0);
@@ -35,9 +35,29 @@ void client_connect(uint16_t port) {
     ResponseKind response;
     recv(client, &response, sizeof(response), 0);
     if(response != HANDSHAKE_SUCCESS) {
+        PRINT_RESPONSE(response);
         close(client);
         exit(EXIT_FAILURE);
     }
 
+    while(true) {
+        RequestKind command = debug_control();
+
+        send(client, &command, sizeof(RequestKind), 0);
+        Packet response;
+        recv(client, &response, sizeof(Packet), 0);
+        printf("%p\n", response.body.list);
+
+        if(command == EXIT)
+            break;
+    }
+
     close(client);
+}
+
+RequestKind debug_control(void) {
+    char command[MAX_INPUT];
+    scanf("%s", command);
+
+    return string_request_direct(command);
 }

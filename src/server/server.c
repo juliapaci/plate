@@ -23,15 +23,9 @@ const Options OPTIONS_DEFAULT = {
 // }
 
 Server init_state(uint16_t port) {
-    char cwd[PATH_MAX] = ".";
-    // if(getcwd(cwd, sizeof(cwd)) == NULL) {
-    //     perror("getcwd");
-    //     exit(EXIT_FAILURE);
-    // }
-
     return (Server){
         .port = port,
-        .root = opendir(cwd)
+        .root = opendir(".")
     };
 }
 
@@ -87,7 +81,8 @@ Packet process_request(Packet *request, Server *server) {
 
     Packet response = {
         .header = (PacketHeader) {
-            .whence = 0 // TODO: should prob make this an enum to be more clear
+            .whence = 0,
+            .res_kind = SUCCESS
         }
     };
 
@@ -100,8 +95,7 @@ Packet process_request(Packet *request, Server *server) {
         case LOAD:
             break;
         case LIST:
-            response.header.res_kind = SUCCESS;
-            response.body = fetch_list(server->root);
+            response.body.list = fetch_list(server->root);
             break;
     }
 
@@ -124,6 +118,17 @@ void *_handle_client(void *arg) {
     }
     free(handshake);
     send(state.client, &response, sizeof(response), 0);
+
+    while(true) {
+        RequestKind request;
+        if(request == EXIT)
+            break;
+        recv(state.client, &request, sizeof(request), 0);
+        printf("%s\n", request_string_direct(request));
+
+        Packet response;
+        send(state.client, &response, sizeof(response), 0);
+    }
 
     close(state.client);
     return NULL;
