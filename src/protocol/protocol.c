@@ -1,7 +1,7 @@
 #include "protocol.h"
 #include <string.h>
+#include <sys/socket.h>
 
-// TODO: automate this (all serialization not just this function)
 const char *request_string_direct(RequestKind request) {
     char *string;
     switch(request) {
@@ -52,6 +52,18 @@ const char *response_string(ResponseKind response) {
     }
 
     return string;
+}
+
+void send_packet(int fd, RequestKind req, Packet *packet) {
+    Packet response = {
+        .header = packet->header,
+        .size = 2 * sizeof(char *),
+    };
+    for(size_t i = 0; i < response.size/sizeof(char *); i++) {
+        memcpy(response.raw + i*sizeof(packet->body.list[i]), packet->body.list[i], strlen(packet->body.list[i]));
+    }
+
+    send(fd, &response, PACKET_SIZE(response), 0);
 }
 
 extern bool validate_handshake(unsigned char *packet);

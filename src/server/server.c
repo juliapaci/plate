@@ -76,17 +76,12 @@ void init_server(Server *state) {
 }
 
 Packet process_request(Packet *request, Server *server) {
-    PacketHeader header;
-    memcpy(&header, request, sizeof(PacketHeader));
+    Packet response = SERVER_PACKET;
 
-    Packet response = {
-        .header = (PacketHeader) {
-            .whence = 0,
-            .res_kind = SUCCESS
-        }
-    };
+    if(request->header.whence == SERVER)
+        response.header.res_kind = FAILURE;
 
-    switch(header.req_kind) {
+    switch(request->header.req_kind) {
         case HANDSHAKE:
             // Should be done in client handler
             break;
@@ -120,14 +115,13 @@ void *_handle_client(void *arg) {
     send(state.client, &response, sizeof(response), 0);
 
     while(true) {
-        RequestKind request;
-        if(request == EXIT)
+        Packet request;
+        recv(state.client, &request.header.req_kind, sizeof(RequestKind), 0);
+        if(request.header.req_kind == EXIT)
             break;
-        recv(state.client, &request, sizeof(request), 0);
-        printf("%s\n", request_string_direct(request));
 
-        Packet response;
-        send(state.client, &response, sizeof(response), 0);
+        Packet response = process_request(&request, state.server_state);
+        send_packet(state.client, request.header.req_kind, &response);
     }
 
     close(state.client);

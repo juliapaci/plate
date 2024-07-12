@@ -42,17 +42,16 @@ void client_connect(uint16_t port) {
 
     while(true) {
         RequestKind command = debug_control();
-
         send(client, &command, sizeof(RequestKind), 0);
+
         Packet response;
-        recv(client, &response, sizeof(Packet), 0);
-        printf("%p\n", response.body.list);
+        recv(client, &response, sizeof(response), 0);
+
+        printf("%s\n", response.raw);
 
         if(command == EXIT)
             break;
     }
-
-    close(client);
 }
 
 RequestKind debug_control(void) {

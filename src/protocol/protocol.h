@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define MAX_LEN 1024 * 1
+
 #define PRINT_RESPONSE(response) fprintf(stderr, "%s\n", response_string(response));
 
 typedef enum {
@@ -16,7 +18,6 @@ typedef enum {
 } RequestKind;
 
 // return codes for any server commands
-// successes are odd and failures are even
 typedef enum {
     SUCCESS,            // generic success
     FAILURE,            // generic error
@@ -24,9 +25,14 @@ typedef enum {
     HANDSHAKE_FAILURE,  // failed to validate the appropriate handshake
 } ResponseKind;
 
+enum PacketWhence {
+    SERVER,
+    CLIENT
+};
+
 // TODO: this or two seperate packets for requests and responses?
 typedef struct __attribute__((packed)) {
-    bool whence; // 0 - server, 1 - client
+    enum PacketWhence whence;
     union {
         RequestKind req_kind;
         ResponseKind res_kind;
@@ -44,8 +50,30 @@ typedef union __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     PacketHeader header;
-    Body body;
+    union {
+        Body body;
+        struct {
+            size_t size;
+            char raw[MAX_LEN];
+        };
+    };
 } Packet;
+
+#define PACKET_SIZE(packet) (sizeof(PacketHeader) + packet.size)
+
+#define SERVER_PACKET (Packet) {    \
+    .header = (PacketHeader) {      \
+        .whence = SERVER,           \
+        .res_kind = SUCCESS         \
+    }                               \
+}
+
+#define CLIENT_PACKET (Packet) {    \
+    .header = (PacketHeader) {      \
+        .whence = CLIENT,           \
+        .res_kind = SUCCESS         \
+    }                               \
+}
 
 typedef struct __attribute__((packed)) {
     uint16_t magic;
@@ -55,7 +83,6 @@ typedef struct __attribute__((packed)) {
 extern const Handshake HANDSHAKE_EXPECTED;
 
 // serialization
-
 // TODO: automated serialization
 // directly serializes the variants' names into strings or "unknown"
 const char *request_string_direct(RequestKind request);
@@ -65,6 +92,8 @@ RequestKind string_request_direct(char *request);
 // converts a ResponseKind to a message
 // NOTE: only implements error responses or "success"
 const char *response_string(ResponseKind response);
+
+void send_packet(int fd, RequestKind req, Packet *packet);
 
 // TODO: not sure if this should be inlined
 // if the handshake is valid all requests will be casted to a Packet
