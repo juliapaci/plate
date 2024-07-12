@@ -22,7 +22,7 @@ const Options OPTIONS_DEFAULT = {
     // TODO: do with getopt()
 // }
 
-Server init_state(void) {
+Server init_state(uint16_t port) {
     char cwd[PATH_MAX] = ".";
     // if(getcwd(cwd, sizeof(cwd)) == NULL) {
     //     perror("getcwd");
@@ -30,11 +30,12 @@ Server init_state(void) {
     // }
 
     return (Server){
-        .living = opendir(cwd)
+        .port = port,
+        .root = opendir(cwd)
     };
 }
 
-void init_server(uint16_t port) {
+void init_server(Server *state) {
     const int server = socket(PF_INET, SOCK_STREAM, 0);
     if(server < 0) {
         perror("socket");
@@ -49,7 +50,7 @@ void init_server(uint16_t port) {
 
     struct sockaddr_in server_sockaddr = {
         .sin_family = AF_INET,
-        .sin_port = htons(port),
+        .sin_port = htons(state->port),
         .sin_addr.s_addr = htonl(INADDR_ANY)
     };
     struct sockaddr_in client_sockaddr;
@@ -69,7 +70,10 @@ void init_server(uint16_t port) {
         int client = accept(server, (struct sockaddr *) &client_sockaddr, &socklen);
 
         pthread_t thread;
-        pthread_create(&thread, NULL, _handle_client, (void *)&client);
+        pthread_create(&thread, NULL, _handle_client, (void *)&(struct SharedState){
+            client,
+            state
+        });
         pthread_detach(thread);
     }
 
@@ -77,44 +81,71 @@ void init_server(uint16_t port) {
     exit(EXIT_SUCCESS);
 }
 
-void *_handle_client(void *arg) {
-    const int client = *(int *)arg;
+Packet process_request(Packet *request, Server *server) {
+    PacketHeader header;
+    memcpy(&header, request, sizeof(PacketHeader));
 
-    if(client < 0) {
+    Packet response = {
+        .header = (PacketHeader) {
+            .whence = 0 // TODO: should prob make this an enum to be more clear
+        }
+    };
+
+    switch(header.req_kind) {
+        case HANDSHAKE:
+            // Should be done in client handler
+            break;
+        case METADATA:
+            break;
+        case LOAD:
+            break;
+        case LIST:
+            response.header.res_kind = SUCCESS;
+            response.body = fetch_list(server->root);
+            break;
+    }
+
+    return response;
+}
+
+void *_handle_client(void *arg) {
+    const struct SharedState state = *(struct SharedState *)arg;;
+
+    if(state.client < 0) {
         perror("accept");
         exit(EXIT_FAILURE);
     }
-unsigned char *buffer = malloc(sizeof(Handshake)); char *response = "s";
-    // Packet response = {
-    //     .kind = HANDSHAKE_SUCCESS
-    // };
-    recv(client, buffer, sizeof(buffer), 0);
-    if(!validate_handshake(buffer)) {
-        response = "failed to validate the appropriate handshake";
+
+    unsigned char *handshake = malloc(sizeof(Handshake));
+    ResponseKind response = HANDSHAKE_SUCCESS;
+    recv(state.client, handshake, sizeof(handshake), 0);
+    if(!validate_handshake(handshake)) {
+        response = HANDSHAKE_FAILURE;
     }
+    free(handshake);
+    send(state.client, &response, sizeof(response), 0);
 
-    send(client, response, strlen(response), 0);
-    fetch_list(opendir("."));
-
-    close(client);
+    close(state.client);
     return NULL;
 }
 
-char *fetch_list(DIR *dirp) {
+// TODO: need a better way to keep track of what should be freed
+char **fetch_list(DIR *dirp) {
     if(!dirp) {
         fprintf(stderr, "failed to fetch list");
     }
 
-    char *response = malloc(0);
-
+    char **response = malloc(1 * sizeof(char *));
     struct dirent *dir;
-    while((dir = readdir(dirp)) != NULL) {
-        printf("%s\n", dir->d_name);
+    for(size_t i = 0; (dir = readdir(dirp)) != NULL; i++) {
+        response = realloc(response, (i+1) * sizeof(char *));
+        // TODO: symlinks?
+        response[i] = dir->d_name;
     }
 
     return response;
 }
 
 void clean_state(Server *server) {
-    closedir(server->living);
+    closedir(server->root);
 }

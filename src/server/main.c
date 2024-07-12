@@ -1,6 +1,8 @@
 #include "server.h"
 
 int main(void) {
-    init_server(8000);
+    Server server = init_state(8000);
+    init_server(&server);
+    clean_state(&server);
     return 0;
 }

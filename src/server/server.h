@@ -1,6 +1,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
+#include <protocol.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -18,23 +19,35 @@ typedef struct {
     size_t chunk_size;      // size of each chunk
 } Options;
 
+extern const Options OPTIONS_DEFAULT;
+
 // server state
 typedef struct {
-    DIR *living;    // where the server root is located
+    // net
+    uint16_t port;
+
+    // misc
+    DIR *root;  // where the server root is located
 } Server;
 
-extern const Options OPTIONS_DEFAULT;
+
+struct SharedState {
+    int client;
+    Server *server_state;
+};
 
 // meta
 Options parse_options_base(FILE *stream);
 Options parse_options(int argc, char **argv);
 
-Server init_state(void);
-void init_server(uint16_t port);
+Server init_state(uint16_t port);
+void init_server(Server *server);
 void *_handle_client(void *arg);
 void clean_state(Server *server);   // cleans up Server
 
 // server commands/requests for client
-char *fetch_list(DIR *dir);  // Fetches the directory contents seperated by a newline
+Packet process_request(Packet *request, Server *server);
+
+char **fetch_list(DIR *dir);  // Fetches the root directory contents
 
 #endif // __SERVER_H__
