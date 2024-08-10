@@ -64,7 +64,7 @@ size_t body_size(Body body, RequestKind req) {
 
     switch(req) {
         case LIST:
-            for(size_t i = 0; i < 1 /* sizeof(body.list)/sizeof(char *) */; i++)
+            for(size_t i = 0; i < 3; i++)
                 size += strlen(body.list[i]);
             break;
         case EXIT:
@@ -80,8 +80,8 @@ void respond(int client_fd, RequestKind req, Packet *packet) {
     confirmation.body.size = body_size(packet->body, req);
     send(client_fd, &confirmation, sizeof(confirmation), 0);
 
-    send(client_fd, &packet->header, sizeof(PacketHeader), 0);
-    packet->body.raw = "testa";
+    // send data
+    send(client_fd, packet, sizeof(PacketHeader), 0);
     send(client_fd, packet->body.raw, confirmation.body.size, 0);
 }
 
@@ -89,7 +89,6 @@ void respond(int client_fd, RequestKind req, Packet *packet) {
 // returns SERVER_PACKET on error
 Packet request(int server_fd, RequestKind req) {
     // recieve confirmation
-    // send(server_fd, packet, sizeof(Packet), 0);
     send(server_fd, &req, sizeof(RequestKind), 0);
     Packet confirmation;
     recv(server_fd, &confirmation, sizeof(Packet), 0);
@@ -98,9 +97,11 @@ Packet request(int server_fd, RequestKind req) {
         return SERVER_PACKET;
     }
 
-    Packet response = CLIENT_PACKET;
+    // recieve data
+    Packet response;
+    response.body.raw = malloc(confirmation.body.size);
     recv(server_fd, &response.header, sizeof(PacketHeader), 0);
-    recv(server_fd, &response.body.raw, confirmation.body.size, 0);
+    recv(server_fd, response.body.raw, confirmation.body.size, 0);
 
     return response;
 }

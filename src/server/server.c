@@ -116,6 +116,7 @@ void *_handle_client(void *arg) {
 
         Packet response = process_request(&request, state.server_state);
         respond(state.client, request.header.req_kind, &response);
+        free(response.body.list);
     }
 
     close(state.client);
@@ -123,6 +124,7 @@ void *_handle_client(void *arg) {
 }
 
 // TODO: need a better way to keep track of what should be free()d
+// TODO: fix freeing problem, need to keep size to know what to free
 char **fetch_list(DIR *dirp) {
     if(!dirp) {
         fprintf(stderr, "failed to fetch list");
@@ -136,9 +138,8 @@ char **fetch_list(DIR *dirp) {
         response[i] = dir->d_name;
     }
 
+    closedir(dirp);
     return response;
 }
 
-void clean_state(Server *server) {
-    closedir(server->root);
-}
+void clean_state(Server *server) { }
