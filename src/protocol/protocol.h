@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #define MAX_LEN 1024 * 1
 
@@ -20,7 +21,7 @@ typedef enum {
 
 // return codes for any server commands
 typedef enum {
-    PRELUDE,            // prelude information for an incoming packet e.g. expected size
+    PRELUDE,            // confirmation/prelude information for an incoming packet e.g. expected size
     SUCCESS,            // generic success
     FAILURE,            // generic error
     HANDSHAKE_SUCCESS,  // successfully validated the handshake
@@ -59,18 +60,15 @@ typedef struct __attribute__((packed)) {
 // references RequestKind
 typedef union __attribute__((packed)) {
     // PRELUDE
-    struct {
-        // size of incoming packet
-        size_t size;
-        // misc related data
-        char raw[MAX_LEN];
-    };
+    size_t size; // size of incoming packet
     // METADATA
     char *metadata;
     // LIST
     char **list;
     // EXIT
     bool exit;
+
+    void *raw;
 } Body;
 
 typedef struct __attribute__((packed)) {
@@ -101,18 +99,20 @@ const char *response_string(ResponseKind response);
 size_t body_size(Body body, RequestKind req);
 
 // send a variable length packet from the server (confirm/prelude sending)
-void send_response(int rec_fd, RequestKind req, Packet *packet);
+void respond(int client_fd, RequestKind req, Packet *packet);
 // send a request from a client (confirm/prelude expecting)
-void send_request(int rec_fd, Packet *packet);
+Packet request(int server_fd, RequestKind req);
 
 // if the handshake is valid all requests will be casted to a Packet
 inline bool validate_handshake(Handshake *handshake) {
-    return memcmp(&HANDSHAKE_EXPECTED, handshake, sizeof(Handshake)) == 0;
+    const Handshake expected_handshake = HANDSHAKE_EXPECTED;
+    return memcmp(&expected_handshake, handshake, sizeof(Handshake)) == 0;
 }
 
 // if the confirmation is verified requests can proceed as usual
 inline bool validate_confirmation(Packet *confirmation) {
-    return memcmp(&SERVER_PACKET, confirmation, sizeof(SERVER_PACKET)) == 0;
+    const Packet expected_confirmation = SERVER_PACKET;
+    return memcmp(&expected_confirmation, confirmation, sizeof(PacketHeader)) == 0;
 }
 
 #endif // __PROTOCOL_H__

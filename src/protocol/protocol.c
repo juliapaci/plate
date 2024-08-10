@@ -42,8 +42,11 @@ RequestKind string_request_direct(char *request) {
 const char *response_string(ResponseKind response) {
     char *string;
     switch(response) {
+        case PRELUDE:
+            string = "failed to confirm prelude";
+            break;
         case FAILURE:
-            string = "error failed";
+            string = "error: failed";
             break;
         case HANDSHAKE_FAILURE:
             string = "failed to verify the handshake";
@@ -60,15 +63,10 @@ size_t body_size(Body body, RequestKind req) {
     size_t size = 0;
 
     switch(req) {
-        case HANDSHAKE:
-            // TODO
-        case METADATA:
-            // TODO
-        case LOAD:
-            // TODO
         case LIST:
             for(size_t i = 0; i < 1 /* sizeof(body.list)/sizeof(char *) */; i++)
                 size += strlen(body.list[i]);
+            break;
         case EXIT:
             size = 0;
     }
@@ -76,23 +74,35 @@ size_t body_size(Body body, RequestKind req) {
     return size;
 }
 
-void send_response(int rec_fd, RequestKind req, Packet *packet) {
-// TODO: this prelude/confirmation idea or we can sneak the length into original packet somewhere
-
+void respond(int client_fd, RequestKind req, Packet *packet) {
     // send the prelude
     Packet confirmation = SERVER_PACKET;
     confirmation.body.size = body_size(packet->body, req);
-    send(rec_fd, &confirmation, sizeof(confirmation), 0);
+    send(client_fd, &confirmation, sizeof(confirmation), 0);
 
-    send(rec_fd, &packet, sizeof(PacketHeader) + confirmation.body.size, 0);
+    send(client_fd, &packet->header, sizeof(PacketHeader), 0);
+    packet->body.raw = "testa";
+    send(client_fd, packet->body.raw, confirmation.body.size, 0);
 }
 
-void send_request(int rec_fd, Packet *packet) {
+// TODO: actual error handling or propagate
+// returns SERVER_PACKET on error
+Packet request(int server_fd, RequestKind req) {
     // recieve confirmation
-    send(rec_fd, packet, sizeof(Packet), 0);
-    Packet *confirmation = malloc(sizeof(Packet));
-    recv(rec_fd, confirmation, sizeof(Packet), 0);
-    validate_confirmation(confirmation);
+    // send(server_fd, packet, sizeof(Packet), 0);
+    send(server_fd, &req, sizeof(RequestKind), 0);
+    Packet confirmation;
+    recv(server_fd, &confirmation, sizeof(Packet), 0);
+    if(!validate_confirmation(&confirmation)) {
+        PRINT_RESPONSE(confirmation.header.res_kind);
+        return SERVER_PACKET;
+    }
+
+    Packet response = CLIENT_PACKET;
+    recv(server_fd, &response.header, sizeof(PacketHeader), 0);
+    recv(server_fd, &response.body.raw, confirmation.body.size, 0);
+
+    return response;
 }
 
 extern bool validate_handshake(Handshake *handshake);

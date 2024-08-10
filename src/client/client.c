@@ -10,8 +10,8 @@
 #include <linux/limits.h>
 
 void client_connect(uint16_t port) {
-    const int client = socket(PF_INET, SOCK_STREAM, 0);
-    if(client < 0) {
+    const int server = socket(PF_INET, SOCK_STREAM, 0);
+    if(server < 0) {
         perror("socket");
         exit(EXIT_FAILURE);
     }
@@ -25,29 +25,26 @@ void client_connect(uint16_t port) {
         exit(EXIT_FAILURE);
     }
 
-    if(connect(client, (struct sockaddr *) &client_sockaddr, sizeof(client_sockaddr)) < 0) {
+    if(connect(server, (struct sockaddr *) &client_sockaddr, sizeof(client_sockaddr)) < 0) {
         perror("connect");
         exit(EXIT_FAILURE);
     }
 
     const Handshake handshake = HANDSHAKE_EXPECTED;
-    send(client, &handshake, sizeof(Handshake), 0);
+    send(server, &handshake, sizeof(Handshake), 0);
     ResponseKind response;
-    recv(client, &response, sizeof(response), 0);
+    recv(server, &response, sizeof(response), 0);
     if(response != HANDSHAKE_SUCCESS) {
         PRINT_RESPONSE(response);
-        close(client);
+        close(server);
         exit(EXIT_FAILURE);
     }
 
     while(true) {
         RequestKind command = debug_control(); // sync
-        send(client, &command, sizeof(RequestKind), 0);
+        Packet response = request(server, command);
 
-        Packet response;
-        recv(client, &response, sizeof(response), 0);
-
-        printf("%s\n", response.raw);
+        printf("%s\n", (char *)response.body.raw);
 
         if(command == EXIT)
             break;

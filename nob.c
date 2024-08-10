@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define BUILD "build"
-#define CFLAGS "-Wall", "-Wextra"
+#define CFLAGS "-Wall", "-Wextra", "-ggdb"
 // TODO: not sure if "-I" is an linker flag?
 #define LDFLAGS "-Lbuild", "-Isrc/protocol", "-lprotocol"
 #define LDFLAGS_DELIM "\", \""

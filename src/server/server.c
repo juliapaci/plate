@@ -85,10 +85,6 @@ Packet process_request(Packet *request, Server *server) {
         case HANDSHAKE:
             // Should be done in client handler
             break;
-        case METADATA:
-            break;
-        case LOAD:
-            break;
         case LIST:
             response.body.list = fetch_list(server->root);
             break;
@@ -105,23 +101,21 @@ void *_handle_client(void *arg) {
         exit(EXIT_FAILURE);
     }
 
-    Handshake *handshake = malloc(sizeof(Handshake));
+    Handshake handshake;
     ResponseKind response = HANDSHAKE_SUCCESS;
-    recv(state.client, handshake, sizeof(Handshake), 0);
-    if(!validate_handshake(handshake)) {
+    recv(state.client, &handshake, sizeof(Handshake), 0);
+    if(!validate_handshake(&handshake))
         response = HANDSHAKE_FAILURE;
-    }
-    free(handshake);
     send(state.client, &response, sizeof(response), 0);
 
     while(true) {
-        Packet request;
+        Packet request = CLIENT_PACKET;
         recv(state.client, &request.header.req_kind, sizeof(RequestKind), 0);
         if(request.header.req_kind == EXIT)
             break;
 
         Packet response = process_request(&request, state.server_state);
-        send_response(state.client, request.header.req_kind, &response);
+        respond(state.client, request.header.req_kind, &response);
     }
 
     close(state.client);
