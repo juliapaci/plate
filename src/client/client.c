@@ -41,7 +41,7 @@ void client_connect(uint16_t port) {
     }
 
     while(true) {
-        RequestKind command = debug_control();
+        RequestKind command = debug_control(); // sync
         send(client, &command, sizeof(RequestKind), 0);
 
         Packet response;

@@ -30,7 +30,6 @@ typedef struct {
     DIR *root;  // where the server root is located
 } Server;
 
-
 struct SharedState {
     int client;
     Server *server_state;

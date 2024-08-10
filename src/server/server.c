@@ -98,16 +98,16 @@ Packet process_request(Packet *request, Server *server) {
 }
 
 void *_handle_client(void *arg) {
-    const struct SharedState state = *(struct SharedState *)arg;;
+    const struct SharedState state = *(struct SharedState *)arg;
 
     if(state.client < 0) {
         perror("accept");
         exit(EXIT_FAILURE);
     }
 
-    unsigned char *handshake = malloc(sizeof(Handshake));
+    Handshake *handshake = malloc(sizeof(Handshake));
     ResponseKind response = HANDSHAKE_SUCCESS;
-    recv(state.client, handshake, sizeof(handshake), 0);
+    recv(state.client, handshake, sizeof(Handshake), 0);
     if(!validate_handshake(handshake)) {
         response = HANDSHAKE_FAILURE;
     }
@@ -121,14 +121,14 @@ void *_handle_client(void *arg) {
             break;
 
         Packet response = process_request(&request, state.server_state);
-        send_packet(state.client, request.header.req_kind, &response);
+        send_response(state.client, request.header.req_kind, &response);
     }
 
     close(state.client);
     return NULL;
 }
 
-// TODO: need a better way to keep track of what should be freed
+// TODO: need a better way to keep track of what should be free()d
 char **fetch_list(DIR *dirp) {
     if(!dirp) {
         fprintf(stderr, "failed to fetch list");

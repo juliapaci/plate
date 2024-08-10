@@ -1,6 +1,8 @@
 #include "protocol.h"
+
 #include <string.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 
 const char *request_string_direct(RequestKind request) {
     char *string;
@@ -54,19 +56,47 @@ const char *response_string(ResponseKind response) {
     return string;
 }
 
-void send_packet(int fd, RequestKind req, Packet *packet) {
-    Packet response = {
-        .header = packet->header,
-        .size = 2 * sizeof(char *),
-    };
-    for(size_t i = 0; i < response.size/sizeof(char *); i++) {
-        memcpy(response.raw + i*sizeof(packet->body.list[i]), packet->body.list[i], strlen(packet->body.list[i]));
+size_t body_size(Body body, RequestKind req) {
+    size_t size = 0;
+
+    switch(req) {
+        case HANDSHAKE:
+            // TODO
+        case METADATA:
+            // TODO
+        case LOAD:
+            // TODO
+        case LIST:
+            for(size_t i = 0; i < 1 /* sizeof(body.list)/sizeof(char *) */; i++)
+                size += strlen(body.list[i]);
+        case EXIT:
+            size = 0;
     }
 
-    send(fd, &response, PACKET_SIZE(response), 0);
+    return size;
 }
 
-extern bool validate_handshake(unsigned char *packet);
+void send_response(int rec_fd, RequestKind req, Packet *packet) {
+// TODO: this prelude/confirmation idea or we can sneak the length into original packet somewhere
+
+    // send the prelude
+    Packet confirmation = SERVER_PACKET;
+    confirmation.body.size = body_size(packet->body, req);
+    send(rec_fd, &confirmation, sizeof(confirmation), 0);
+
+    send(rec_fd, &packet, sizeof(PacketHeader) + confirmation.body.size, 0);
+}
+
+void send_request(int rec_fd, Packet *packet) {
+    // recieve confirmation
+    send(rec_fd, packet, sizeof(Packet), 0);
+    Packet *confirmation = malloc(sizeof(Packet));
+    recv(rec_fd, confirmation, sizeof(Packet), 0);
+    validate_confirmation(confirmation);
+}
+
+extern bool validate_handshake(Handshake *handshake);
+extern bool validate_confirmation(Packet *confirmation);
 
 // NOTE: some fields like version can vary
 const Handshake HANDSHAKE_EXPECTED = {

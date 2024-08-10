@@ -9,6 +9,7 @@
 
 #define PRINT_RESPONSE(response) fprintf(stderr, "%s\n", response_string(response));
 
+// valid requests for the client to send to the server
 typedef enum {
     HANDSHAKE,  // initial handshake
     METADATA,   // gets the metadata
@@ -19,6 +20,7 @@ typedef enum {
 
 // return codes for any server commands
 typedef enum {
+    PRELUDE,            // prelude information for an incoming packet e.g. expected size
     SUCCESS,            // generic success
     FAILURE,            // generic error
     HANDSHAKE_SUCCESS,  // successfully validated the handshake
@@ -30,6 +32,21 @@ enum PacketWhence {
     CLIENT
 };
 
+// TODO: maybe shouldnt have prelude res_kidne by default.
+//      if we chage it we have to change it in confirmation validation aswell
+#define SERVER_PACKET (Packet) {    \
+    .header = (PacketHeader) {      \
+        .whence = SERVER,           \
+        .res_kind = PRELUDE         \
+    }                               \
+}
+
+#define CLIENT_PACKET (Packet) {    \
+    .header = (PacketHeader) {      \
+        .whence = CLIENT,           \
+    }                               \
+}
+
 // TODO: this or two seperate packets for requests and responses?
 typedef struct __attribute__((packed)) {
     enum PacketWhence whence;
@@ -39,7 +56,15 @@ typedef struct __attribute__((packed)) {
     };
 } PacketHeader;
 
+// references RequestKind
 typedef union __attribute__((packed)) {
+    // PRELUDE
+    struct {
+        // size of incoming packet
+        size_t size;
+        // misc related data
+        char raw[MAX_LEN];
+    };
     // METADATA
     char *metadata;
     // LIST
@@ -50,31 +75,10 @@ typedef union __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     PacketHeader header;
-    union {
-        Body body;
-        struct {
-            size_t size;
-            char raw[MAX_LEN];
-        };
-    };
+    Body body;
 } Packet;
 
-#define PACKET_SIZE(packet) (sizeof(PacketHeader) + packet.size)
-
-#define SERVER_PACKET (Packet) {    \
-    .header = (PacketHeader) {      \
-        .whence = SERVER,           \
-        .res_kind = SUCCESS         \
-    }                               \
-}
-
-#define CLIENT_PACKET (Packet) {    \
-    .header = (PacketHeader) {      \
-        .whence = CLIENT,           \
-        .res_kind = SUCCESS         \
-    }                               \
-}
-
+// TODO: make Handshake into a custom Packet as is Prelude
 typedef struct __attribute__((packed)) {
     uint16_t magic;
     uint8_t version;
@@ -93,12 +97,22 @@ RequestKind string_request_direct(char *request);
 // NOTE: only implements error responses or "success"
 const char *response_string(ResponseKind response);
 
-void send_packet(int fd, RequestKind req, Packet *packet);
+// size of `body`
+size_t body_size(Body body, RequestKind req);
 
-// TODO: not sure if this should be inlined
+// send a variable length packet from the server (confirm/prelude sending)
+void send_response(int rec_fd, RequestKind req, Packet *packet);
+// send a request from a client (confirm/prelude expecting)
+void send_request(int rec_fd, Packet *packet);
+
 // if the handshake is valid all requests will be casted to a Packet
-inline bool validate_handshake(unsigned char *packet) {
-    return memcmp(&HANDSHAKE_EXPECTED, packet, sizeof(Handshake)) == 0;
+inline bool validate_handshake(Handshake *handshake) {
+    return memcmp(&HANDSHAKE_EXPECTED, handshake, sizeof(Handshake)) == 0;
+}
+
+// if the confirmation is verified requests can proceed as usual
+inline bool validate_confirmation(Packet *confirmation) {
+    return memcmp(&SERVER_PACKET, confirmation, sizeof(SERVER_PACKET)) == 0;
 }
 
 #endif // __PROTOCOL_H__
