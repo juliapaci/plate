@@ -45,7 +45,7 @@ void client_connect(uint16_t port) {
         Packet response = request(server, command);
 
         printf("%s\n", (char *)response.body.raw);
-        free(response.body.raw);
+        // free_body(&response.body);
 
         if(command == EXIT)
             break;

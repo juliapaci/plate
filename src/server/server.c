@@ -4,7 +4,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <netinet/in.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -25,7 +24,7 @@ const Options OPTIONS_DEFAULT = {
 Server init_state(uint16_t port) {
     return (Server){
         .port = port,
-        .root = opendir(".")
+        .root = "."
     };
 }
 
@@ -86,7 +85,7 @@ Packet process_request(Packet *request, Server *server) {
             // Should be done in client handler
             break;
         case LIST:
-            response.body.list = fetch_list(server->root);
+            response.body = command_fetch_list(server->root);
             break;
     }
 
@@ -116,30 +115,11 @@ void *_handle_client(void *arg) {
 
         Packet response = process_request(&request, state.server_state);
         respond(state.client, request.header.req_kind, &response);
-        free(response.body.list);
+        // free_body(&response.body);
     }
 
     close(state.client);
     return NULL;
-}
-
-// TODO: need a better way to keep track of what should be free()d
-// TODO: fix freeing problem, need to keep size to know what to free
-char **fetch_list(DIR *dirp) {
-    if(!dirp) {
-        fprintf(stderr, "failed to fetch list");
-    }
-
-    char **response = malloc(1 * sizeof(char *));
-    struct dirent *dir;
-    for(size_t i = 0; (dir = readdir(dirp)) != NULL; i++) {
-        response = realloc(response, (i+1) * sizeof(char *));
-        // TODO: symlinks?
-        response[i] = dir->d_name;
-    }
-
-    closedir(dirp);
-    return response;
 }
 
 void clean_state(Server *server) { }

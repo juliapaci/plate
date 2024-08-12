@@ -25,7 +25,7 @@ void build_server(void) {
     //             "-c", src
     //         );
     // });
-    CMD("cc", CFLAGS,  "-o", PATH(BUILD, "server"), PATH("src", "server", "main.c"), PATH("src", "server", "server.c"), LDFLAGS);
+    CMD("cc", CFLAGS,  "-o", PATH(BUILD, "server"), PATH("src", "server", "main.c"), PATH("src", "server", "server.c"), PATH("src", "server", "commands.c"), LDFLAGS);
 }
 
 void build_client(void) {

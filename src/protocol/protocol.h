@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MAX_LEN 1024 * 1
 
@@ -51,29 +52,28 @@ enum PacketWhence {
 // TODO: this or two seperate packets for requests and responses?
 typedef struct __attribute__((packed)) {
     enum PacketWhence whence;
-    union {
+    // TODO: not sure if i have to explicitely pack here
+    union __attribute__((packed)) {
         RequestKind req_kind;
         ResponseKind res_kind;
     };
 } PacketHeader;
 
 // references RequestKind
-typedef union __attribute__((packed)) {
-    // PRELUDE
-    size_t size; // size of incoming packet
-    // METADATA
-    char *metadata;
-    // LIST
-    char **list;
-    // EXIT
-    bool exit;
-
-    void *raw;
-} Body;
+typedef struct __attribute__((packed)) {
+    // TODO: could use segs instead of prelude size
+    union __attribute__((packed)) {
+        struct {
+            void *raw;  // pointer to data
+            size_t seg; // segment amount e.g. double pointer count
+        };
+        size_t size; // prelude
+    };
+} PacketBody;
 
 typedef struct __attribute__((packed)) {
     PacketHeader header;
-    Body body;
+    PacketBody body;
 } Packet;
 
 // TODO: make Handshake into a custom Packet as is Prelude
@@ -96,7 +96,7 @@ RequestKind string_request_direct(char *request);
 const char *response_string(ResponseKind response);
 
 // size of `body`
-size_t body_size(Body body, RequestKind req);
+size_t body_size(PacketBody body, RequestKind req);
 
 // send a variable length packet from the server (confirm/prelude sending)
 void respond(int client_fd, RequestKind req, Packet *packet);
@@ -113,6 +113,14 @@ inline bool validate_handshake(Handshake *handshake) {
 inline bool validate_confirmation(Packet *confirmation) {
     const Packet expected_confirmation = SERVER_PACKET;
     return memcmp(&expected_confirmation, confirmation, sizeof(PacketHeader)) == 0;
+}
+
+inline void free_body(PacketBody *body) {
+    for(size_t i = 0; i < body->seg; i++)
+        free(((void **)body->raw)[i]);
+    free(body->raw);
+
+    *body = (PacketBody){0};
 }
 
 #endif // __PROTOCOL_H__

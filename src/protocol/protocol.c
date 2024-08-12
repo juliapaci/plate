@@ -59,13 +59,13 @@ const char *response_string(ResponseKind response) {
     return string;
 }
 
-size_t body_size(Body body, RequestKind req) {
+size_t body_size(PacketBody body, RequestKind req) {
     size_t size = 0;
 
     switch(req) {
         case LIST:
-            for(size_t i = 0; i < 3; i++)
-                size += strlen(body.list[i]);
+            for(size_t i = 0; i < body.seg; i++)
+                size += strlen(((char **)body.raw)[i]) + 1; // null terminated
             break;
         case EXIT:
             size = 0;
@@ -82,7 +82,15 @@ void respond(int client_fd, RequestKind req, Packet *packet) {
 
     // send data
     send(client_fd, packet, sizeof(PacketHeader), 0);
-    send(client_fd, packet->body.raw, confirmation.body.size, 0);
+    send(client_fd, &packet->body.seg, sizeof(size_t), 0);
+    // TODO: could serialise and deserialize double pointer for sending
+    if(packet->body.seg == 0)
+        send(client_fd, packet->body.raw, confirmation.body.size, 0);
+    else
+        for(size_t i = 0; i < packet->body.seg; i++) {
+            void *curr = ((void **)packet->body.raw)[i];
+            send(client_fd, curr, strlen(curr), 0);
+        }
 }
 
 // TODO: actual error handling or propagate
@@ -99,8 +107,14 @@ Packet request(int server_fd, RequestKind req) {
 
     // recieve data
     Packet response;
-    response.body.raw = malloc(confirmation.body.size);
     recv(server_fd, &response.header, sizeof(PacketHeader), 0);
+    recv(server_fd, &response.body.seg, sizeof(size_t), 0);
+    // response.body.raw = malloc(response.body.seg * sizeof(void *));
+    // for(size_t i = 0; i < response.body.seg; i++) {
+    //     ((void **)response.body.raw)[i] = malloc(sizeof(void *));
+    // }
+
+    response.body.raw = malloc(confirmation.body.size);
     recv(server_fd, response.body.raw, confirmation.body.size, 0);
 
     return response;
@@ -108,6 +122,7 @@ Packet request(int server_fd, RequestKind req) {
 
 extern bool validate_handshake(Handshake *handshake);
 extern bool validate_confirmation(Packet *confirmation);
+extern void free_body(PacketBody *body);
 
 // NOTE: some fields like version can vary
 const Handshake HANDSHAKE_EXPECTED = {

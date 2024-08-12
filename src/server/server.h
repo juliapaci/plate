@@ -24,10 +24,10 @@ extern const Options OPTIONS_DEFAULT;
 // server state
 typedef struct {
     // net
-    uint16_t port;
+    uint16_t port;  // server port
 
-    // misc
-    DIR *root;  // where the server root is located
+    // state
+    char *root;     // path to server root
 } Server;
 
 struct SharedState {
@@ -47,6 +47,7 @@ void clean_state(Server *server);   // cleans up Server
 // server commands/requests for client
 Packet process_request(Packet *request, Server *server);
 
-char **fetch_list(DIR *dir);  // Fetches the root directory contents
+// requests
+PacketBody command_fetch_list(char *path);  // Fetches the root directory contents
 
 #endif // __SERVER_H__
