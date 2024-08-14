@@ -7,9 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_LEN 1024 * 1
-
 #define PRINT_RESPONSE(response) fprintf(stderr, "%s\n", response_string(response));
+
+#define MAX_DEPTH 5 // should make this configurable
 
 // valid requests for the client to send to the server
 typedef enum {
@@ -20,9 +20,14 @@ typedef enum {
     EXIT,       // close the client connection
 } RequestKind;
 
+// should use reflection cause this dependes on meta ordering
+// should the server expect confirmation/acknowledgement that the request sent correctly without issue
+// dont depend on TCP
+#define EXPECT_ACK(req) (bool []){0,0,1,0,0}[req]
+
 // return codes for any server commands
+// TODO: more than simply SUCCESS and FAILURE arent necessary cause we progress linearly so we can always determine in what stage the failure should be interpreted as and stuff
 typedef enum {
-    PRELUDE,            // confirmation/prelude information for an incoming packet e.g. expected size
     SUCCESS,            // generic success
     FAILURE,            // generic error
     HANDSHAKE_SUCCESS,  // successfully validated the handshake
@@ -34,12 +39,10 @@ enum PacketWhence {
     CLIENT
 };
 
-// TODO: maybe shouldnt have prelude res_kidne by default.
-//      if we chage it we have to change it in confirmation validation aswell
+// TODO: constants instead of macros?
 #define SERVER_PACKET (Packet) {    \
     .header = (PacketHeader) {      \
         .whence = SERVER,           \
-        .res_kind = PRELUDE         \
     }                               \
 }
 
@@ -50,6 +53,7 @@ enum PacketWhence {
 }
 
 // TODO: this or two seperate packets for requests and responses?
+// TODO: should be some basic error detecting, maybe just through a checksum in there but we dont need it for all packets just for the EXPECT_CONFIRM or important data ones
 typedef struct __attribute__((packed)) {
     enum PacketWhence whence;
     // TODO: not sure if i have to explicitely pack here
@@ -57,18 +61,13 @@ typedef struct __attribute__((packed)) {
         RequestKind req_kind;
         ResponseKind res_kind;
     };
+    size_t size; // body size
 } PacketHeader;
 
 // references RequestKind
 typedef struct __attribute__((packed)) {
-    // TODO: could use segs instead of prelude size
-    union __attribute__((packed)) {
-        struct {
-            void *raw;  // pointer to data
-            size_t seg; // segment amount e.g. double pointer count
-        };
-        size_t size; // prelude
-    };
+    size_t seg; // segment amount e.g. double pointer count
+    void *raw;  // pointer to data
 } PacketBody;
 
 typedef struct __attribute__((packed)) {
@@ -98,21 +97,16 @@ const char *response_string(ResponseKind response);
 // size of `body`
 size_t body_size(PacketBody body, RequestKind req);
 
-// send a variable length packet from the server (confirm/prelude sending)
-void respond(int client_fd, RequestKind req, Packet *packet);
-// send a request from a client (confirm/prelude expecting)
+// send a variable length packet from the server
+// depth for retransmission
+void respond(int client, RequestKind req, Packet *packet, size_t depth);
+// send a request from a client
 Packet request(int server_fd, RequestKind req);
 
 // if the handshake is valid all requests will be casted to a Packet
 inline bool validate_handshake(Handshake *handshake) {
     const Handshake expected_handshake = HANDSHAKE_EXPECTED;
     return memcmp(&expected_handshake, handshake, sizeof(Handshake)) == 0;
-}
-
-// if the confirmation is verified requests can proceed as usual
-inline bool validate_confirmation(Packet *confirmation) {
-    const Packet expected_confirmation = SERVER_PACKET;
-    return memcmp(&expected_confirmation, confirmation, sizeof(PacketHeader)) == 0;
 }
 
 inline void free_body(PacketBody *body) {

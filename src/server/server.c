@@ -114,7 +114,7 @@ void *_handle_client(void *arg) {
             break;
 
         Packet response = process_request(&request, state.server_state);
-        respond(state.client, request.header.req_kind, &response);
+        respond(state.client, request.header.req_kind, &response, 0);
         // free_body(&response.body);
     }
 

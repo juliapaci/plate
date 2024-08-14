@@ -42,9 +42,6 @@ RequestKind string_request_direct(char *request) {
 const char *response_string(ResponseKind response) {
     char *string;
     switch(response) {
-        case PRELUDE:
-            string = "failed to confirm prelude";
-            break;
         case FAILURE:
             string = "error: failed";
             break;
@@ -74,49 +71,54 @@ size_t body_size(PacketBody body, RequestKind req) {
     return size;
 }
 
-void respond(int client_fd, RequestKind req, Packet *packet) {
-    // send the prelude
-    Packet confirmation = SERVER_PACKET;
-    confirmation.body.size = body_size(packet->body, req);
-    send(client_fd, &confirmation, sizeof(confirmation), 0);
-
-    // send data
-    send(client_fd, packet, sizeof(PacketHeader), 0);
-    send(client_fd, &packet->body.seg, sizeof(size_t), 0);
+void respond(int client, RequestKind req, Packet *packet, size_t depth) {
+    packet->header.size = body_size(packet->body, req);
+    send(client, packet, sizeof(PacketHeader), 0);
+    send(client, &packet->body.seg, sizeof(size_t), 0);
     // TODO: could serialise and deserialize double pointer for sending
     if(packet->body.seg == 0)
-        send(client_fd, packet->body.raw, confirmation.body.size, 0);
+        send(client, packet->body.raw, packet->header.size, 0);
     else
         for(size_t i = 0; i < packet->body.seg; i++) {
             void *curr = ((void **)packet->body.raw)[i];
-            send(client_fd, curr, strlen(curr), 0);
+            send(client, curr, strlen(curr), 0);
         }
+
+    if(depth > MAX_DEPTH)
+        return;
+
+    // acknowledgement for EDAC
+    if(!EXPECT_ACK(req))
+        return;
+
+    // TODO: an actual acknowledgement packet
+    // TODO: socket timeout but only for certain packets not all
+    bool ack = false;
+    recv(client, &ack, sizeof(ack), 0);
+    if(!ack)
+        // TODO: not sure if its better to keep the response data and resend it manually rather than doing some redundant computations
+        respond(client, req, packet, depth + 1);
 }
 
-// TODO: actual error handling or propagate
-// returns SERVER_PACKET on error
-Packet request(int server_fd, RequestKind req) {
-    // recieve confirmation
-    send(server_fd, &req, sizeof(RequestKind), 0);
-    Packet confirmation;
-    recv(server_fd, &confirmation, sizeof(Packet), 0);
-    if(!validate_confirmation(&confirmation)) {
-        PRINT_RESPONSE(confirmation.header.res_kind);
-        return SERVER_PACKET;
-    }
+Packet request(int server, RequestKind req) {
+    send(server, &req, sizeof(RequestKind), 0);
 
-    // recieve data
     Packet response;
-    recv(server_fd, &response.header, sizeof(PacketHeader), 0);
-    recv(server_fd, &response.body.seg, sizeof(size_t), 0);
+    recv(server, &response.header, sizeof(PacketHeader), 0);
+    recv(server, &response.body.seg, sizeof(size_t), 0);
     // response.body.raw = malloc(response.body.seg * sizeof(void *));
     // for(size_t i = 0; i < response.body.seg; i++) {
     //     ((void **)response.body.raw)[i] = malloc(sizeof(void *));
     // }
 
-    response.body.raw = malloc(confirmation.body.size);
-    recv(server_fd, response.body.raw, confirmation.body.size, 0);
+    response.body.raw = malloc(response.header.size);
+    recv(server, response.body.raw, response.header.size, 0);
 
+    // acknowledgement for EDAC
+    if(!EXPECT_ACK(req))
+        return response;
+    const bool ack = true;
+    send(server, &ack, sizeof(ack), 0);
     return response;
 }
 
