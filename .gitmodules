@@ -1,0 +1,3 @@
+[submodule "ext/mirror"]
+	path = ext/mirror
+	url = git@github.com:aymey/mirror.git
