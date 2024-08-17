@@ -36,6 +36,8 @@ void init_server(Server *state) {
     }
 
     const int opt = 1;
+    // TODO: socket timout for not TCP ACK
+    // TODO: maybe SO_KEEPALIVE
     if(setsockopt(server, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
@@ -74,13 +76,10 @@ void init_server(Server *state) {
     exit(EXIT_SUCCESS);
 }
 
-Packet process_request(Packet *request, Server *server) {
-    Packet response = SERVER_PACKET;
+Packet process_request(RequestKind req, Server *server) {
+    Packet response = {0};
 
-    if(request->header.whence == SERVER)
-        response.header.res_kind = FAILURE;
-
-    switch(request->header.req_kind) {
+    switch(req) {
         case HANDSHAKE:
             // Should be done in client handler
             break;
@@ -101,20 +100,23 @@ void *_handle_client(void *arg) {
     }
 
     Handshake handshake;
-    ResponseKind response = HANDSHAKE_SUCCESS;
     recv(state.client, &handshake, sizeof(Handshake), 0);
-    if(!validate_handshake(&handshake))
-        response = HANDSHAKE_FAILURE;
-    send(state.client, &response, sizeof(response), 0);
+    bool valid = validate_handshake(&handshake);
+    send(state.client, &valid, sizeof(valid), 0);
+    if(!valid) {
+        close(state.client);
+        return NULL;
+    }
+
 
     while(true) {
-        Packet request = CLIENT_PACKET;
-        recv(state.client, &request.header.req_kind, sizeof(RequestKind), 0);
-        if(request.header.req_kind == EXIT)
+        RequestKind request;
+        recv(state.client, &request, sizeof(request), 0);
+        if(request == EXIT)
             break;
 
-        Packet response = process_request(&request, state.server_state);
-        respond(state.client, request.header.req_kind, &response, 0);
+        Packet response = process_request(request, state.server_state);
+        respond(state.client, request, &response, 0);
         // free_body(&response.body);
     }
 
