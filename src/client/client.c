@@ -32,10 +32,10 @@ void client_connect(uint16_t port) {
 
     const Handshake handshake = HANDSHAKE_EXPECTED;
     send(server, &handshake, sizeof(Handshake), 0);
-    ResponseKind response;
-    recv(server, &response, sizeof(response), 0);
-    if(response != HANDSHAKE_SUCCESS) {
-        PRINT_RESPONSE(response);
+    bool valid;
+    recv(server, &valid, sizeof(valid), 0);
+    if(valid != true) {
+        fprintf(stderr, "handshake failed\n");
         close(server);
         exit(EXIT_FAILURE);
     }

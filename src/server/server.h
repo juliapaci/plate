@@ -45,7 +45,7 @@ void *_handle_client(void *arg);
 void clean_state(Server *server);   // cleans up Server
 
 // server commands/requests for client
-Packet process_request(Packet *request, Server *server);
+Packet process_request(RequestKind request, Server *server);
 
 // requests
 PacketBody command_fetch_list(char *path);  // Fetches the root directory contents

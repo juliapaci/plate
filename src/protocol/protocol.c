@@ -39,23 +39,6 @@ RequestKind string_request_direct(char *request) {
     return EXIT;
 }
 
-const char *response_string(ResponseKind response) {
-    char *string;
-    switch(response) {
-        case FAILURE:
-            string = "error: failed";
-            break;
-        case HANDSHAKE_FAILURE:
-            string = "failed to verify the handshake";
-            break;
-        default:
-            string = "success";
-            break;
-    }
-
-    return string;
-}
-
 size_t body_size(PacketBody body, RequestKind req) {
     size_t size = 0;
 
@@ -75,6 +58,7 @@ void respond(int client, RequestKind req, Packet *packet, size_t depth) {
     packet->header.size = body_size(packet->body, req);
     send(client, packet, sizeof(PacketHeader), 0);
     send(client, &packet->body.seg, sizeof(size_t), 0);
+    // TODO: can use packet header segments now
     // TODO: could serialise and deserialize double pointer for sending
     if(packet->body.seg == 0)
         send(client, packet->body.raw, packet->header.size, 0);
@@ -129,5 +113,5 @@ extern void free_body(PacketBody *body);
 // NOTE: some fields like version can vary
 const Handshake HANDSHAKE_EXPECTED = {
     .magic = ('P' << 8) | 'T',
-    .version = 1,
-};
+    .version = VERSION,
+};;
