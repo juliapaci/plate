@@ -4,7 +4,7 @@
 
 #define BUILD "build"
 #define CFLAGS "-Wall", "-Wextra", "-ggdb"
-// TODO: not sure if "-I" is an linker flag?
+// TODO: not sure if "-I" is an linker flag? but its included in compile_commands.json so ill keep it here for now
 #define LDFLAGS "-Lbuild", "-Isrc/protocol", "-lprotocol"
 #define LDFLAGS_DELIM "\", \""
 

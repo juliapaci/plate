@@ -108,7 +108,6 @@ void *_handle_client(void *arg) {
         return NULL;
     }
 
-
     while(true) {
         RequestKind request;
         recv(state.client, &request, sizeof(request), 0);

@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 
+// TODO: X macros
 const char *request_string_direct(RequestKind request) {
     char *string;
     switch(request) {
@@ -44,7 +45,7 @@ size_t body_size(PacketBody body, RequestKind req) {
 
     switch(req) {
         case LIST:
-            for(size_t i = 0; i < body.seg; i++)
+            for(size_t i = 0; i < body.segments; i++)
                 size += strlen(((char **)body.raw)[i]) + 1; // null terminated
             break;
         case EXIT:
@@ -57,16 +58,9 @@ size_t body_size(PacketBody body, RequestKind req) {
 void respond(int client, RequestKind req, Packet *packet, size_t depth) {
     packet->header.size = body_size(packet->body, req);
     send(client, packet, sizeof(PacketHeader), 0);
-    send(client, &packet->body.seg, sizeof(size_t), 0);
-    // TODO: can use packet header segments now
+    send(client, &packet->body.segments, sizeof(size_t), 0);
     // TODO: could serialise and deserialize double pointer for sending
-    if(packet->body.seg == 0)
-        send(client, packet->body.raw, packet->header.size, 0);
-    else
-        for(size_t i = 0; i < packet->body.seg; i++) {
-            void *curr = ((void **)packet->body.raw)[i];
-            send(client, curr, strlen(curr), 0);
-        }
+    send(client, packet->body.raw, packet->header.size, 0);
 
     if(depth > MAX_DEPTH)
         return;
@@ -89,12 +83,7 @@ Packet request(int server, RequestKind req) {
 
     Packet response;
     recv(server, &response.header, sizeof(PacketHeader), 0);
-    recv(server, &response.body.seg, sizeof(size_t), 0);
-    // response.body.raw = malloc(response.body.seg * sizeof(void *));
-    // for(size_t i = 0; i < response.body.seg; i++) {
-    //     ((void **)response.body.raw)[i] = malloc(sizeof(void *));
-    // }
-
+    recv(server, &response.body.segments, sizeof(size_t), 0);
     response.body.raw = malloc(response.header.size);
     recv(server, response.body.raw, response.header.size, 0);
 

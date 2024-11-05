@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-// TODO: need a better way to keep track of what should be free()d
+// TODO: need a better way to keep track of what should be free()d (probably just arena)
 // TODO: fix freeing problem, need to keep size to know what to free
 PacketBody command_fetch_list(char *path) {
     DIR *dirp = opendir(path);
@@ -23,6 +23,6 @@ PacketBody command_fetch_list(char *path) {
 
     return (PacketBody) {
         .raw = response,
-        .seg = amount
+        .segments = amount
     };
 }

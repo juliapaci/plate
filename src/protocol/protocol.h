@@ -33,17 +33,16 @@ typedef enum {
 // TODO: this or two seperate packets for requests and responses?
 // TODO: should be some basic error detecting, maybe just through a checksum in there but we dont need it for all packets just for the EXPECT_CONFIRM or important data ones
 typedef struct __attribute__((packed)) {
+    // TODO: probably dont need application layer edac
     char hash[256]; // sha256 checksum of body
     // TODO: dont have to send segments all the time
-    size_t segments;// amount of segments to expect
-    size_t id;      // segment id
-    size_t size;    // body size
+    size_t size;    // total body size (including all segments)
 } PacketHeader;
 
 // references RequestKind
 typedef struct __attribute__((packed)) {
-    size_t seg; // segment amount e.g. double pointer count
-    void *raw;  // pointer to data
+    size_t segments;    // segment amount e.g. double pointer count
+    void *raw;          // pointer to data
 } PacketBody;
 
 typedef struct __attribute__((packed)) {
@@ -81,7 +80,7 @@ inline bool validate_handshake(Handshake *handshake) {
 }
 
 inline void free_body(PacketBody *body) {
-    for(size_t i = 0; i < body->seg; i++)
+    for(size_t i = 0; i < body->segments; i++)
         free(((void **)body->raw)[i]);
     free(body->raw);
 
