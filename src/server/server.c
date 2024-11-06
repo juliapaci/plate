@@ -84,7 +84,7 @@ Packet process_request(RequestKind req, Server *server) {
             // Should be done in client handler
             break;
         case LIST:
-            response.body = command_fetch_list(server->root);
+            response = command_fetch_list(server->root);
             break;
     }
 
@@ -116,7 +116,7 @@ void *_handle_client(void *arg) {
 
         Packet response = process_request(request, state.server_state);
         respond(state.client, request, &response, 0);
-        // free_body(&response.body);
+        free(response.raw);
     }
 
     close(state.client);

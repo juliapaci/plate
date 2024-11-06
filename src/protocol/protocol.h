@@ -30,24 +30,9 @@ typedef enum {
 // dont depend on TCP
 #define EXPECT_ACK(req) (bool []){0,0,1,0,0}[req]
 
-// TODO: this or two seperate packets for requests and responses?
-// TODO: should be some basic error detecting, maybe just through a checksum in there but we dont need it for all packets just for the EXPECT_CONFIRM or important data ones
 typedef struct __attribute__((packed)) {
-    // TODO: probably dont need application layer edac
-    char hash[256]; // sha256 checksum of body
-    // TODO: dont have to send segments all the time
     size_t size;    // total body size (including all segments)
-} PacketHeader;
-
-// references RequestKind
-typedef struct __attribute__((packed)) {
-    size_t segments;    // segment amount e.g. double pointer count
-    void *raw;          // pointer to data
-} PacketBody;
-
-typedef struct __attribute__((packed)) {
-    PacketHeader header;
-    PacketBody body;
+    void *raw;      // pointer to data
 } Packet;
 
 typedef struct __attribute__((packed)) {
@@ -64,9 +49,6 @@ const char *request_string_direct(RequestKind request);
 // string -> request or EXIT
 RequestKind string_request_direct(char *request);
 
-// size of `body`
-size_t body_size(PacketBody body, RequestKind req);
-
 // send a variable length packet from the server
 // depth for retransmission
 void respond(int client, RequestKind req, Packet *packet, size_t depth);
@@ -77,14 +59,6 @@ Packet request(int server_fd, RequestKind req);
 inline bool validate_handshake(Handshake *handshake) {
     const Handshake expected_handshake = HANDSHAKE_EXPECTED;
     return memcmp(&expected_handshake, handshake, sizeof(Handshake)) == 0;
-}
-
-inline void free_body(PacketBody *body) {
-    for(size_t i = 0; i < body->segments; i++)
-        free(((void **)body->raw)[i]);
-    free(body->raw);
-
-    *body = (PacketBody){0};
 }
 
 #endif // __PROTOCOL_H__

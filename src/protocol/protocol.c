@@ -40,27 +40,13 @@ RequestKind string_request_direct(char *request) {
     return EXIT;
 }
 
-size_t body_size(PacketBody body, RequestKind req) {
-    size_t size = 0;
-
-    switch(req) {
-        case LIST:
-            for(size_t i = 0; i < body.segments; i++)
-                size += strlen(((char **)body.raw)[i]) + 1; // null terminated
-            break;
-        case EXIT:
-            size = 0;
-    }
-
-    return size;
-}
+#include <stdio.h>
 
 void respond(int client, RequestKind req, Packet *packet, size_t depth) {
-    packet->header.size = body_size(packet->body, req);
-    send(client, packet, sizeof(PacketHeader), 0);
-    send(client, &packet->body.segments, sizeof(size_t), 0);
-    // TODO: could serialise and deserialize double pointer for sending
-    send(client, packet->body.raw, packet->header.size, 0);
+    printf("starting %ld\n", packet->size);
+    printf("%s\n", (char *)packet->raw);
+    send(client, &packet->size, sizeof(size_t), 0);
+    send(client, packet->raw, packet->size, 0);
 
     if(depth > MAX_DEPTH)
         return;
@@ -82,10 +68,9 @@ Packet request(int server, RequestKind req) {
     send(server, &req, sizeof(RequestKind), 0);
 
     Packet response;
-    recv(server, &response.header, sizeof(PacketHeader), 0);
-    recv(server, &response.body.segments, sizeof(size_t), 0);
-    response.body.raw = malloc(response.header.size);
-    recv(server, response.body.raw, response.header.size, 0);
+    recv(server, &response, sizeof(size_t), 0);
+    response.raw = malloc(response.size);
+    recv(server, response.raw, response.size, 0);
 
     // acknowledgement for EDAC
     if(!EXPECT_ACK(req))
@@ -97,7 +82,6 @@ Packet request(int server, RequestKind req) {
 
 extern bool validate_handshake(Handshake *handshake);
 extern bool validate_confirmation(Packet *confirmation);
-extern void free_body(PacketBody *body);
 
 // NOTE: some fields like version can vary
 const Handshake HANDSHAKE_EXPECTED = {

@@ -44,11 +44,9 @@ void client_connect(uint16_t port) {
         RequestKind command = debug_control(); // sync
         Packet response = request(server, command);
 
-        printf("starting %ld\n", response.header.size);
-        for(size_t i = 0; i < response.body.segments; i++)
-            printf("%s\n", ((char **)response.body.raw)[i]);
-        printf("done\n");
-        // free_body(&response.body);
+        printf("starting %ld\n", response.size);
+        printf("%s\n", (char *)response.raw);
+        free(response.raw);
 
         if(command == EXIT)
             break;

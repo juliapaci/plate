@@ -48,6 +48,6 @@ void clean_state(Server *server);   // cleans up Server
 Packet process_request(RequestKind request, Server *server);
 
 // requests
-PacketBody command_fetch_list(char *path);  // Fetches the root directory contents
+Packet command_fetch_list(char *path);  // Fetches the root directory contents
 
 #endif // __SERVER_H__

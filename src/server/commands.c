@@ -3,26 +3,29 @@
 #include <stdlib.h>
 
 // TODO: need a better way to keep track of what should be free()d (probably just arena)
-// TODO: fix freeing problem, need to keep size to know what to free
-PacketBody command_fetch_list(char *path) {
+
+Packet command_fetch_list(char *path) {
     DIR *dirp = opendir(path);
     if(!dirp) {
         fprintf(stderr, "failed to fetch list");
-        return (PacketBody){0};
+        return (Packet){0};
     }
 
-    char **response = malloc(1 * sizeof(char *));
+    char *list = malloc(1);
+    size_t size = 0;
     struct dirent *dir;
-    size_t amount;
-    for(amount = 0; (dir = readdir(dirp)) != NULL; amount++) {
-        response = realloc(response, (amount+1) * sizeof(char *));
+    for(size_t i = 0; (dir = readdir(dirp)) != NULL; i++) {
+        size += strlen(dir->d_name) + 1; // null terminated
+        list = realloc(list, size);
         // TODO: symlinks?
-        response[amount] = dir->d_name;
+        strcat(list, dir->d_name);
+        strcat(list, "\0");
     }
     closedir(dirp);
 
-    return (PacketBody) {
-        .raw = response,
-        .segments = amount
+    printf("sizesize %ld\n", size);
+    return (Packet) {
+        .raw = list,
+        .size = size
     };
 }
