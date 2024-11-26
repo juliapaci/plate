@@ -6,45 +6,21 @@
 
 // TODO: X macros
 const char *request_string_direct(RequestKind request) {
-    char *string;
-    switch(request) {
-        case HANDSHAKE:
-            string = "handshake";
-            break;
-        case METADATA:
-            string = "metadata";
-            break;
-        case LOAD:
-            string = "load";
-            break;
-        case LIST:
-            string = "list";
-            break;
-        case EXIT:
-            string = "exit";
-            break;
-        default:
-            string = "unknown";
-            break;
-    }
-
-    return string;
+    return (const char *[]){"handshake", "metadata", "load", "list", "exit"}[request];
 }
 
 RequestKind string_request_direct(char *request) {
     if(strcmp(request, "list") == 0)
         return LIST;
+    if(strcmp(request, "metadata") == 0)
+        return METADATA;
     else if(strcmp(request, "exit") == 0)
         return EXIT;
 
     return EXIT;
 }
 
-#include <stdio.h>
-
 void respond(int client, RequestKind req, Packet *packet, size_t depth) {
-    printf("starting %ld\n", packet->size);
-    printf("%s\n", (char *)packet->raw);
     send(client, &packet->size, sizeof(size_t), 0);
     send(client, packet->raw, packet->size, 0);
 
@@ -64,8 +40,8 @@ void respond(int client, RequestKind req, Packet *packet, size_t depth) {
         respond(client, req, packet, depth + 1);
 }
 
-Packet request(int server, RequestKind req) {
-    send(server, &req, sizeof(RequestKind), 0);
+Packet request(int server, Request req) {
+    send(server, &req, sizeof(Request), 0);
 
     Packet response;
     recv(server, &response, sizeof(size_t), 0);
@@ -73,7 +49,7 @@ Packet request(int server, RequestKind req) {
     recv(server, response.raw, response.size, 0);
 
     // acknowledgement for EDAC
-    if(!EXPECT_ACK(req))
+    if(!EXPECT_ACK(req.kind))
         return response;
     const bool ack = true;
     send(server, &ack, sizeof(ack), 0);

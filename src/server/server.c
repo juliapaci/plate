@@ -76,15 +76,18 @@ void init_server(Server *state) {
     exit(EXIT_SUCCESS);
 }
 
-Packet process_request(RequestKind req, Server *server) {
+Packet process_request(Request req, Server *server) {
     Packet response = {0};
 
-    switch(req) {
+    switch(req.kind) {
         case HANDSHAKE:
             // Should be done in client handler
             break;
+        case METADATA:
+            response = command_metadata(server->root, req.args);
+            break;
         case LIST:
-            response = command_fetch_list(server->root);
+            response = command_list(server->root);
             break;
     }
 
@@ -109,13 +112,13 @@ void *_handle_client(void *arg) {
     }
 
     while(true) {
-        RequestKind request;
+        Request request;
         recv(state.client, &request, sizeof(request), 0);
-        if(request == EXIT)
+        if(request.kind == EXIT)
             break;
 
         Packet response = process_request(request, state.server_state);
-        respond(state.client, request, &response, 0);
+        respond(state.client, request.kind, &response, 0);
         free(response.raw);
     }
 

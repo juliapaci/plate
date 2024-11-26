@@ -42,9 +42,15 @@ void client_connect(uint16_t port) {
 
     while(true) {
         RequestKind command = debug_control(); // sync
-        Packet response = request(server, command);
+        size_t args;
+        if(command == METADATA)
+            scanf("%ld", &args);
 
-        printf("starting %ld\n", response.size);
+        Packet response = request(server, (Request){
+            .kind = command,
+            .args = args
+        });
+
         printf("%s\n", (char *)response.raw);
         free(response.raw);
 

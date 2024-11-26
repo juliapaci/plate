@@ -34,7 +34,6 @@ void build_client(void) {
 
 // NOTE: very bare bones just so clangd can pick up on stuff
 void create_compile_commands(void) {
-    CMD("touch", "compile_commands.json");
     FILE *json = fopen("compile_commands.json", "w");
 
     const char *ldflags_array[] = {LDFLAGS};
@@ -58,7 +57,7 @@ void create_compile_commands(void) {
         "\t\t"      "\"arguments\": [\"/usr/bin/cc%s\"],"   "\n"
         "\t\t"      "\"file\": \"N/A\""         "\n"
         "\t"    "}"                             "\n"
-        "]",
+        "]\n",
         GETCWD(),
         ldflags_args
     );

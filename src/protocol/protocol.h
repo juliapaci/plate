@@ -36,6 +36,11 @@ typedef struct __attribute__((packed)) {
 } Packet;
 
 typedef struct __attribute__((packed)) {
+    RequestKind kind;
+    size_t args;
+} Request;
+
+typedef struct __attribute__((packed)) {
     uint16_t magic;
     uint8_t version;
 } Handshake;
@@ -53,7 +58,7 @@ RequestKind string_request_direct(char *request);
 // depth for retransmission
 void respond(int client, RequestKind req, Packet *packet, size_t depth);
 // send a request from a client
-Packet request(int server_fd, RequestKind req);
+Packet request(int server_fd, Request req);
 
 // if the handshake is valid all requests will be casted to a Packet
 inline bool validate_handshake(Handshake *handshake) {

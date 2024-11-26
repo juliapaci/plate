@@ -45,9 +45,10 @@ void *_handle_client(void *arg);
 void clean_state(Server *server);   // cleans up Server
 
 // server commands/requests for client
-Packet process_request(RequestKind request, Server *server);
+Packet process_request(Request request, Server *server);
 
 // requests
-Packet command_fetch_list(char *path);  // Fetches the root directory contents
+Packet command_list(char *path);  // Fetches the root directory contents
+Packet command_metadata(char *path, size_t index);
 
 #endif // __SERVER_H__
